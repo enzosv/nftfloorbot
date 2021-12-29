@@ -20,7 +20,7 @@
                 "sigh_ducks_px777"
             ],
             "max": 4,
-            "_max": "Price >= max will be recorded but not messaged on telegram"
+            "_max": "Price > max will be recorded but not messaged on telegram"
         }
     ],
     "history_json_path": "history.json"
