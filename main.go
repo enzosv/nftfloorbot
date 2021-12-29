@@ -16,9 +16,10 @@ import (
 )
 
 type Response struct {
-	Stats Stats `json:"stats"`
+	OpenseaStats   OpenseaStats   `json:"stats"`
+	MagicEdenStats MagicEdenStats `json:"results"`
 }
-type Stats struct {
+type OpenseaStats struct {
 	OneDayVolume          float64 `json:"one_day_volume"`
 	OneDayChange          float64 `json:"one_day_change"`
 	OneDaySales           float64 `json:"one_day_sales"`
@@ -42,6 +43,25 @@ type Stats struct {
 	FloorPrice            float64 `json:"floor_price"`
 }
 
+type MagicEdenStats struct {
+	Symbol                   string `json:"symbol"`
+	Enabledattributesfilters bool   `json:"enabledAttributesFilters"`
+	Availableattributes      []struct {
+		Count     int   `json:"count"`
+		Floor     int64 `json:"floor"`
+		Attribute struct {
+			TraitType string `json:"trait_type"`
+			Value     string `json:"value"`
+		} `json:"attribute"`
+	} `json:"availableAttributes"`
+	Floorprice       int64   `json:"floorPrice"`
+	Listedcount      int     `json:"listedCount"`
+	Listedtotalvalue int64   `json:"listedTotalValue"`
+	Avgprice24Hr     float64 `json:"avgPrice24hr"`
+	Volume24Hr       int64   `json:"volume24hr"`
+	Volumeall        int64   `json:"volumeAll"`
+}
+
 type Persisted struct {
 	Slug  string    `json:"slug"`
 	Floor float64   `json:"floor"`
@@ -50,9 +70,15 @@ type Persisted struct {
 
 type Config struct {
 	Telegram TelegramConfig `json:"telegram"`
-	Slugs    []string       `json:"collection_slugs"`
+	Stores   []StoreConfig  `json:"stores"`
 	Output   string         `json:"history_json_path"`
-	Max      float64        `json:"max"`
+}
+
+type StoreConfig struct {
+	Slugs    []string `json:"collection_slugs"`
+	StoreURL string   `json:"store_url"`
+	StatsURL string   `json:"stats_url"`
+	Max      float64  `json:"max"`
 }
 
 type TelegramConfig struct {
@@ -60,15 +86,12 @@ type TelegramConfig struct {
 	RecipientID string `json:"recipient_id"`
 }
 
-const STORE_URL = "https://opensea.io/collection"
-const STATS_URL = "https://api.opensea.io/api/v1/collection/%s/stats"
 const TGURL = "https://api.telegram.org"
 
 func main() {
 	configPath := flag.String("c", "config.json", "config file")
 	flag.Parse()
 	config := parseConfig(*configPath)
-
 	for {
 		watchFloor(config)
 		time.Sleep(300 * time.Millisecond)
@@ -103,29 +126,31 @@ func watchFloor(config Config) {
 	}
 	// consider waitgroup
 	// but might be rate limited by opensea
-	for _, slug := range config.Slugs {
-		stats, err := fetchStats(slug)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		old_floor := findFloor(old_floors, slug)
-
-		floor := stats.FloorPrice
-		if old_floor == 0 || (old_floor != floor) {
-			floors[slug] = floor
-			if floor > config.Max {
-				// dont send message if floor is above threshold
+	for _, store := range config.Stores {
+		for _, slug := range store.Slugs {
+			url := fmt.Sprintf(store.StatsURL, slug)
+			floor, err := fetchFloor(url)
+			if err != nil {
+				fmt.Println(err)
 				continue
 			}
-			dif := (floor - old_floor) / floor
-			msg := fmt.Sprintf("[%s](%s/%s): %.4f", slug, STORE_URL, slug, floor)
-			if dif > 0 {
-				msg += fmt.Sprintf("*(+%.2f%%)*", dif*100)
-			} else {
-				msg += fmt.Sprintf("`(%.2f%%)`", dif*100)
+			old_floor := findFloor(old_floors, slug)
+
+			if old_floor == 0 || (old_floor != floor) {
+				floors[slug] = floor
+				if floor > store.Max {
+					// dont send message if floor is above threshold
+					continue
+				}
+				dif := (floor - old_floor) / floor
+				msg := fmt.Sprintf("[%s](%s/%s): %.4f", slug, store.StoreURL, slug, floor)
+				if dif > 0 {
+					msg += fmt.Sprintf("*(+%.2f%%)*", dif*100)
+				} else {
+					msg += fmt.Sprintf("`(%.2f%%)`", dif*100)
+				}
+				message = append(message, msg)
 			}
-			message = append(message, msg)
 		}
 	}
 	// TODO: wait
@@ -137,24 +162,29 @@ func watchFloor(config Config) {
 	}
 }
 
-// opensea
-func fetchStats(slug string) (Stats, error) {
-	var stats Stats
-	res, err := http.Get(fmt.Sprintf(STATS_URL, slug))
+// store
+func fetchFloor(url string) (float64, error) {
+	res, err := http.Get(url)
 	if err != nil {
-		return stats, err
+		return 0, err
 	}
 	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return stats, err
+		return 0, err
 	}
 	var response Response
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return stats, err
+		return 0, err
 	}
-	return response.Stats, nil
+	if response.OpenseaStats.FloorPrice > 0 {
+		return response.OpenseaStats.FloorPrice, nil
+	}
+	if response.MagicEdenStats.Floorprice > 0 {
+		return float64(response.MagicEdenStats.Floorprice) / 1000000000, nil
+	}
+	return 0, fmt.Errorf(url + "floor not found")
 }
 
 // basic json persistence

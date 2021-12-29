@@ -3,10 +3,25 @@
         "bot_id":"get from t.me/BotFather",
         "recipient_id":"get from t.me/getidsbot"
     },
-    "collection_slugs": [
-        "psychedelics-anonymous-genesis"
+    "stores": [
+        {
+            "store_url": "https://opensea.io/collection",
+            "stats_url": "https://api.opensea.io/api/v1/collection/%s/stats",
+            "collection_slugs": [
+                "psychedelics-anonymous-genesis"
+            ],
+            "max": 0.8,
+            "_max": "Price >= max will be recorded but not messaged on telegram"
+        },
+        {
+            "store_url": "https://www.magiceden.io/marketplace",
+            "stats_url": "https://api-mainnet.magiceden.io/rpc/getCollectionEscrowStats/%s",
+            "collection_slugs": [
+                "sigh_ducks_px777"
+            ],
+            "max": 4,
+            "_max": "Price >= max will be recorded but not messaged on telegram"
+        }
     ],
-    "history_json_path": "history.json",
-    "max": 0.8,
-    "_max": "Price >= max will be recorded but not messaged on telegram"
+    "history_json_path": "history.json"
 }
