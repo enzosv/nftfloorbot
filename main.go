@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -94,7 +95,7 @@ func main() {
 	config := parseConfig(*configPath)
 	for {
 		watchFloor(config)
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(800 * time.Millisecond)
 	}
 
 }
@@ -124,19 +125,25 @@ func watchFloor(config Config) {
 		fmt.Printf("read error: %v\n", err)
 		// continue anyway to generate from new fetch
 	}
-	// consider waitgroup
-	// but might be rate limited by opensea
-	for _, store := range config.Stores {
-		for _, slug := range store.Slugs {
-			url := fmt.Sprintf(store.StatsURL, slug)
-			floor, err := fetchFloor(url)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			old_floor := findFloor(old_floors, slug)
+	wg := new(sync.WaitGroup)
+	wg.Add(len(config.Stores))
 
-			if old_floor == 0 || (old_floor != floor) {
+	for _, store := range config.Stores {
+		// fetch collections one at a time per store
+		// but fetch from many stores together
+		go func(store StoreConfig) {
+
+			for _, slug := range store.Slugs {
+				url := fmt.Sprintf(store.StatsURL, slug)
+				floor, err := fetchFloor(url)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				old_floor := findFloor(old_floors, slug)
+				if old_floor > 0 && old_floor == floor {
+					continue
+				}
 				floors[slug] = floor
 				if floor > store.Max {
 					// dont send message if floor is above threshold
@@ -151,9 +158,10 @@ func watchFloor(config Config) {
 				}
 				message = append(message, msg)
 			}
-		}
+			wg.Done()
+		}(store)
 	}
-	// TODO: wait
+	wg.Wait()
 	if len(message) > 0 {
 		sendMessage(config.Telegram.BotID, config.Telegram.RecipientID, strings.Join(message, "\n"))
 	}
