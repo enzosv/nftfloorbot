@@ -1,0 +1,12 @@
+{
+    "telegram":{
+        "bot_id":"get from t.me/BotFather",
+        "recipient_id":"get from t.me/getidsbot"
+    },
+    "collection_slugs": [
+        "psychedelics-anonymous-genesis"
+    ],
+    "history_json_path": "history.json",
+    "max": 0.8,
+    "_max": "Price >= max will be recorded but not messaged on telegram"
+}
