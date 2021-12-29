@@ -138,21 +138,20 @@ func fetchFloor(url string, tree []string, multiplier float64) (float64, error) 
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", url, err)
 	}
-	var data map[string]interface{}
-	err = json.Unmarshal(body, &data)
+	var stats map[string]interface{}
+	err = json.Unmarshal(body, &stats)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", url, err)
 	}
-	var stats map[string]interface{}
 	for _, key := range tree {
 		switch val := stats[key].(type) {
 		case float64:
 			return val * multiplier, nil
 		default:
-			stats = data[key].(map[string]interface{})
+			stats = stats[key].(map[string]interface{})
 		}
 	}
-	return 0, fmt.Errorf(url + "floor not found")
+	return 0, fmt.Errorf("%s: floor not found", url)
 }
 
 // basic json persistence
