@@ -5,10 +5,11 @@ Telegram bot to notify you of changing floor prices for NFT collections you choo
 * You need to add find the slugs for the collections you are watching and add to config manually
 ## Preview
 [](https://github.com/enzosv/nftfloorbot/blob/main/screenshot.png)
+
 # Build and run
 ## Requirements
 * go
-* config.json. See [sample_config.json](https://github.com/enzosv/nftfloorbot/blob/main/sample_config.json) for more details.
+* config.json. See [sample_config.json](https://github.com/enzosv/nftfloorbot/blob/main/screenshot.png?raw=true) for more details.
 ## Steps
 ```
 go get -d
