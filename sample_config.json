@@ -1,26 +1,37 @@
 {
     "telegram":{
-        "bot_id":"get from t.me/BotFather",
-        "recipient_id":"get from t.me/getidsbot"
+        "bot_id":"get from https://t.me/BotFather",
+        "recipient_id":"get from https://t.me/getidsbot"
     },
     "stores": [
         {
-            "store_url": "https://opensea.io/collection",
+            "store_url": "https://opensea.io/collection/%s?search[sortAscending]=true&search[sortBy]=PRICE&search[toggles][0]=BUY_NOW",
             "stats_url": "https://api.opensea.io/api/v1/collection/%s/stats",
             "collection_slugs": [
                 "psychedelics-anonymous-genesis"
             ],
             "max": 0.8,
-            "_max": "Price >= max will be recorded but not messaged on telegram"
+            "_max": "Price >= max will be recorded but not messaged on telegram",
+            "json_map": [
+                "stats",
+                "floor_price"
+            ],
+            "_json_map": "path to traverse json. root.stats.floor_price",
+            "multiplier": 1,
+            "_multiplier": "resulting price will be multiplied by this. Useful if price is in wei"
         },
         {
-            "store_url": "https://www.magiceden.io/marketplace",
+            "store_url": "https://www.magiceden.io/marketplace/%s",
             "stats_url": "https://api-mainnet.magiceden.io/rpc/getCollectionEscrowStats/%s",
             "collection_slugs": [
                 "sigh_ducks_px777"
             ],
             "max": 4,
-            "_max": "Price > max will be recorded but not messaged on telegram"
+            "json_map": [
+                "results",
+                "floorPrice"
+            ],
+            "multiplier": 1.0E-9
         }
     ],
     "history_json_path": "history.json"
