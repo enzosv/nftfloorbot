@@ -16,53 +16,6 @@ import (
 	"time"
 )
 
-type Response struct {
-	OpenseaStats   OpenseaStats   `json:"stats"`
-	MagicEdenStats MagicEdenStats `json:"results"`
-}
-type OpenseaStats struct {
-	OneDayVolume          float64 `json:"one_day_volume"`
-	OneDayChange          float64 `json:"one_day_change"`
-	OneDaySales           float64 `json:"one_day_sales"`
-	OneDayAveragePrice    float64 `json:"one_day_average_price"`
-	SevenDayVolume        float64 `json:"seven_day_volume"`
-	SevenDayChange        float64 `json:"seven_day_change"`
-	SevenDaySales         float64 `json:"seven_day_sales"`
-	SevenDayAveragePrice  float64 `json:"seven_day_average_price"`
-	ThirtyDayVolume       float64 `json:"thirty_day_volume"`
-	ThirtyDayChange       float64 `json:"thirty_day_change"`
-	ThirtyDaySales        float64 `json:"thirty_day_sales"`
-	ThirtyDayAveragePrice float64 `json:"thirty_day_average_price"`
-	TotalVolume           float64 `json:"total_volume"`
-	TotalSales            float64 `json:"total_sales"`
-	TotalSupply           float64 `json:"total_supply"`
-	Count                 float64 `json:"count"`
-	NumOwners             int     `json:"num_owners"`
-	AveragePrice          float64 `json:"average_price"`
-	NumReports            int     `json:"num_reports"`
-	MarketCap             float64 `json:"market_cap"`
-	FloorPrice            float64 `json:"floor_price"`
-}
-
-type MagicEdenStats struct {
-	Symbol                   string `json:"symbol"`
-	Enabledattributesfilters bool   `json:"enabledAttributesFilters"`
-	Availableattributes      []struct {
-		Count     int   `json:"count"`
-		Floor     int64 `json:"floor"`
-		Attribute struct {
-			TraitType string `json:"trait_type"`
-			Value     string `json:"value"`
-		} `json:"attribute"`
-	} `json:"availableAttributes"`
-	Floorprice       int64   `json:"floorPrice"`
-	Listedcount      int     `json:"listedCount"`
-	Listedtotalvalue int64   `json:"listedTotalValue"`
-	Avgprice24Hr     float64 `json:"avgPrice24hr"`
-	Volume24Hr       int64   `json:"volume24hr"`
-	Volumeall        int64   `json:"volumeAll"`
-}
-
 type Persisted struct {
 	Slug  string    `json:"slug"`
 	Floor float64   `json:"floor"`
@@ -76,10 +29,12 @@ type Config struct {
 }
 
 type StoreConfig struct {
-	Slugs    []string `json:"collection_slugs"`
-	StoreURL string   `json:"store_url"`
-	StatsURL string   `json:"stats_url"`
-	Max      float64  `json:"max"`
+	Slugs      []string `json:"collection_slugs"`
+	StoreURL   string   `json:"store_url"`
+	StatsURL   string   `json:"stats_url"`
+	Max        float64  `json:"max"`
+	Tree       []string `json:"json_map"`
+	Multiplier float64  `json:"multiplier"`
 }
 
 type TelegramConfig struct {
@@ -135,13 +90,14 @@ func watchFloor(config Config) {
 
 			for _, slug := range store.Slugs {
 				url := fmt.Sprintf(store.StatsURL, slug)
-				floor, err := fetchFloor(url)
+				floor, err := fetchFloor(url, store.Tree, store.Multiplier)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
 				old_floor := findFloor(old_floors, slug)
 				if old_floor > 0 && old_floor == floor {
+					// floor unchanged. ignore
 					continue
 				}
 				floors[slug] = floor
@@ -150,7 +106,8 @@ func watchFloor(config Config) {
 					continue
 				}
 				dif := (floor - old_floor) / floor
-				msg := fmt.Sprintf("[%s](%s/%s): %.4f", slug, store.StoreURL, slug, floor)
+				store_url := fmt.Sprintf(store.StoreURL, slug)
+				msg := fmt.Sprintf("[%s](%s): %.4f", slug, store_url, floor)
 				if dif > 0 {
 					msg += fmt.Sprintf("*(+%.2f%%)*", dif*100)
 				} else {
@@ -171,26 +128,29 @@ func watchFloor(config Config) {
 }
 
 // store
-func fetchFloor(url string) (float64, error) {
+func fetchFloor(url string, tree []string, multiplier float64) (float64, error) {
 	res, err := http.Get(url)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%s: %w", url, err)
 	}
 	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%s: %w", url, err)
 	}
-	var response Response
-	err = json.Unmarshal(body, &response)
+	var data map[string]interface{}
+	err = json.Unmarshal(body, &data)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%s: %w", url, err)
 	}
-	if response.OpenseaStats.FloorPrice > 0 {
-		return response.OpenseaStats.FloorPrice, nil
-	}
-	if response.MagicEdenStats.Floorprice > 0 {
-		return float64(response.MagicEdenStats.Floorprice) / 1000000000, nil
+	var stats map[string]interface{}
+	for _, key := range tree {
+		switch val := stats[key].(type) {
+		case float64:
+			return val * multiplier, nil
+		default:
+			stats = data[key].(map[string]interface{})
+		}
 	}
 	return 0, fmt.Errorf(url + "floor not found")
 }
