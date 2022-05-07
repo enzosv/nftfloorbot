@@ -101,6 +101,7 @@ func watchFloor(config Config) {
 					continue
 				}
 				floors[slug] = floor
+				fmt.Println(slug, floor)
 				if floor > store.Max {
 					// dont send message if floor is above threshold
 					continue
@@ -120,10 +121,16 @@ func watchFloor(config Config) {
 	}
 	wg.Wait()
 	if len(message) > 0 {
-		sendMessage(config.Telegram.BotID, config.Telegram.RecipientID, strings.Join(message, "\n"))
+		err = sendMessage(config.Telegram.BotID, config.Telegram.RecipientID, strings.Join(message, "\n"))
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 	if len(floors) > 0 {
-		saveFloor(old_floors, floors, config.Output)
+		err = saveFloor(old_floors, floors, config.Output)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
 
@@ -155,20 +162,15 @@ func fetchFloor(url string, tree []string, multiplier float64) (float64, error) 
 }
 
 // basic json persistence
-func saveFloor(persisted []Persisted, floors map[string]float64, output string) {
+func saveFloor(persisted []Persisted, floors map[string]float64, output string) error {
 	for slug, floor := range floors {
 		persisted = append(persisted, Persisted{slug, floor, time.Now()})
 	}
 	latest, err := json.Marshal(persisted)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
-	err = ioutil.WriteFile(output, latest, 0644)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	return ioutil.WriteFile(output, latest, 0644)
 }
 
 func readFloor(source string) ([]Persisted, error) {
@@ -205,25 +207,13 @@ func constructPayload(chatID, message string) (*bytes.Reader, error) {
 func sendMessage(bot, chatID, message string) error {
 	payload, err := constructPayload(chatID, message)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/bot%s/sendMessage", TGURL, bot), payload)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	defer res.Body.Close()
-	_, err = ioutil.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	return nil
+	_, err = http.DefaultClient.Do(req)
+	return err
 }
