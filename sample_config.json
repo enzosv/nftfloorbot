@@ -1,7 +1,7 @@
 {
-    "telegram":{
-        "bot_id":"get from https://t.me/BotFather",
-        "recipient_id":"get from https://t.me/getidsbot"
+    "telegram": {
+        "bot_id": "get from https://t.me/BotFather",
+        "recipient_id": "get from https://t.me/getidsbot"
     },
     "stores": [
         {
@@ -22,13 +22,12 @@
         },
         {
             "store_url": "https://www.magiceden.io/marketplace/%s",
-            "stats_url": "https://api-mainnet.magiceden.io/rpc/getCollectionEscrowStats/%s",
+            "stats_url": "https://api-mainnet.magiceden.dev/v2/collections/%s/stats",
             "collection_slugs": [
-                "sigh_ducks_px777"
+                "gemmy"
             ],
-            "max": 4,
+            "max": 4.2,
             "json_map": [
-                "results",
                 "floorPrice"
             ],
             "multiplier": 1.0E-9

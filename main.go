@@ -154,12 +154,17 @@ func fetchFloor(url string, tree []string, multiplier float64) (float64, error) 
 		switch val := stats[key].(type) {
 		case float64:
 			return val * multiplier, nil
+		case map[string]interface{}:
+			stats = val
 		default:
-			stats = stats[key].(map[string]interface{})
+			return 0, fmt.Errorf("invalid json traverse. Ended with %v", val)
 		}
 	}
 	return 0, fmt.Errorf("%s: floor not found", url)
 }
+
+//TODO: Fetch rarity
+// https://api-mainnet.magiceden.io/rpc/getListedNFTsByQueryLite?q={"$match":{"collectionSymbol":"gemmy"},"$sort":{"takerAmount":1},"$skip":0,"$limit":20,"status":[]}
 
 // basic json persistence
 func saveFloor(persisted []Persisted, floors map[string]float64, output string) error {
