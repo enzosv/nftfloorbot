@@ -33,6 +33,7 @@ type StoreConfig struct {
 	StoreURL   string   `json:"store_url"`
 	StatsURL   string   `json:"stats_url"`
 	Max        float64  `json:"max"`
+	Min        float64  `json:"min"`
 	Tree       []string `json:"json_map"`
 	Multiplier float64  `json:"multiplier"`
 }
@@ -102,7 +103,7 @@ func watchFloor(config Config) {
 				}
 				floors[slug] = floor
 				fmt.Println(slug, floor)
-				if floor > store.Max {
+				if floor >= store.Max || floor <= store.Min {
 					// dont send message if floor is above threshold
 					continue
 				}
